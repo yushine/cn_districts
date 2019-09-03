@@ -23,11 +23,12 @@ func main() {
 	}
 
 	sheets := getSheets()
+	clearData()
 	handleData(sheets)
 }
 
 func getSheets() []*xlsx.Sheet {
-	file := "./2019-7-cn-regions.xlsx"
+	file := "./data/2019-7-cn-regions.xlsx"
 	xlFile, err := xlsx.OpenFile(file)
 	if err != nil {
 		_, _ = pp.Println(err.Error())
@@ -35,6 +36,11 @@ func getSheets() []*xlsx.Sheet {
 	}
 
 	return xlFile.Sheets
+}
+
+func clearData() {
+	result, err := DB.Exec("TRUNCATE TABLE districts")
+	_, _ = pp.Println(result, err)
 }
 
 func handleData(sheets []*xlsx.Sheet) {
