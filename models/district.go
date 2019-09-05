@@ -4,6 +4,7 @@ import "time"
 
 type District struct {
 	ID        int
+	CountryID int
 	Name      string
 	Level     int
 	UpID      int

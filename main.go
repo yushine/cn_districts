@@ -3,28 +3,34 @@ package main
 import (
 	"McaZones/models"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/k0kubun/pp"
 	"github.com/tealeg/xlsx"
+	"io/ioutil"
+	"os"
+	"reflect"
 	"strings"
 	"time"
 )
 
-var DB *sql.DB
+var db *sql.DB
 
 func main() {
 	_, _ = pp.Println("Start load excel ...")
 
 	var err = errors.New("")
-	DB, err = sql.Open("mysql", "root:admin123my@tcp(192.168.0.112:3306)/beahu_api_development")
+	db, err = sql.Open("mysql", "root:admin123my@tcp(192.168.0.112:3306)/beahu_api_development")
 	if err != nil {
 		_, _ = pp.Println(err.Error())
 	}
 
-	sheets := getSheets()
-	clearData()
-	handleData(sheets)
+	//sheets := getSheets()
+	//clearData()
+	//handleData(sheets)
+
+	updateLocation()
 }
 
 func getSheets() []*xlsx.Sheet {
@@ -39,7 +45,7 @@ func getSheets() []*xlsx.Sheet {
 }
 
 func clearData() {
-	result, err := DB.Exec("TRUNCATE TABLE districts")
+	result, err := db.Exec("TRUNCATE TABLE districts")
 	_, _ = pp.Println(result, err)
 }
 
@@ -90,8 +96,9 @@ func handleData(sheets []*xlsx.Sheet) {
 				parentId = int(lastInsertId)
 			}
 
-			result, err := DB.Exec(
-				"INSERT INTO districts (name, level, up_id, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			result, err := db.Exec(
+				"INSERT INTO districts (country_id, name, level, up_id, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				"44",
 				district.Name,
 				district.Level,
 				parentId,
@@ -109,4 +116,52 @@ func handleData(sheets []*xlsx.Sheet) {
 			_, _ = pp.Println(district, result, err)
 		}
 	}
+}
+
+func updateLocation() {
+	locations := getTXLocation()
+	items := locations["result"]
+	_, _ = pp.Println(reflect.TypeOf(items).Kind().String())
+
+	for index, levelOne := range items.([]interface{}) {
+		_, _ = pp.Println(index)
+		for index2, levelTwo := range levelOne.([]interface{}) {
+			_, _ = pp.Println(index2)
+			levelTwo2 := levelTwo.(map[string]interface{})
+			location := levelTwo2["location"].(map[string]interface{})
+
+			code := levelTwo2["id"]
+			latitude := location["lat"]
+			longitude := location["lng"]
+
+			_, _ = pp.Println(code, latitude, longitude)
+			result, err := db.Exec("UPDATE districts set longitude=?, latitude=? where code=?", longitude, latitude, code)
+			if err != nil {
+				_, _ = pp.Println(result, err)
+				return
+			}
+		}
+	}
+}
+
+/**
+https://lbs.qq.com/webservice_v1/guide-region.html
+*/
+func getTXLocation() map[string]interface{} {
+	file := "./data/qq-map-regions.json"
+	jsonFile, err := os.Open(file)
+
+	// if we os.Open returns an error then handle it
+	if err != nil {
+		_, _ = pp.Println(err)
+	}
+
+	// defer the closing of our jsonFile so that we can parse it later on
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var result map[string]interface{}
+	_ = json.Unmarshal([]byte(byteValue), &result)
+	return result
 }
