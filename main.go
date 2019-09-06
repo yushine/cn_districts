@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -119,6 +120,7 @@ func handleData(sheets []*xlsx.Sheet) {
 }
 
 func updateLocation() {
+	count := 1
 	locations := getTXLocation()
 	items := locations["result"]
 	_, _ = pp.Println(reflect.TypeOf(items).Kind().String())
@@ -140,8 +142,10 @@ func updateLocation() {
 				_, _ = pp.Println(result, err)
 				return
 			}
+			count = count + 1
 		}
 	}
+	_, _ = pp.Println("总数为:" + strconv.Itoa(count))
 }
 
 /**
